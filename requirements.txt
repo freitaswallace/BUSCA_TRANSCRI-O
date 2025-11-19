@@ -1,0 +1,15 @@
+# Dependências do Sistema de Busca Avançada em Arquivos Word
+# Instalar com: pip install -r requirements.txt
+
+# Interface Gráfica Moderna
+customtkinter==5.2.2
+
+# Manipulação de arquivos Word (.docx)
+python-docx==1.1.2
+
+# Google Gemini AI
+google-generativeai==0.8.3
+
+# Dependências complementares
+Pillow==10.4.0
+packaging==24.1
