@@ -27,6 +27,7 @@ Sistema inteligente de busca local para arquivos Word (.docx, .doc) com integra�
 ### Pré-requisitos
 
 - Python 3.8 ou superior
+- **Windows** com Microsoft Word instalado (para arquivos .doc antigos)
 - Acesso à rede onde estão os arquivos (\\192.168.20.100\trabalho\Transcrições)
 - API Key do Google Gemini (opcional, para busca com IA)
 
@@ -186,6 +187,14 @@ pip install python-docx
 pip install google-generativeai
 ```
 
+### Erro: "pywin32 não instalado" ou arquivos .doc não funcionam
+
+```bash
+pip install pywin32
+```
+
+**Nota**: Para ler arquivos .doc antigos (Word 97-2003), é necessário ter o Microsoft Word instalado no Windows.
+
 ### Interface não abre
 
 ```bash
@@ -220,7 +229,8 @@ BUSCA_TRANSCRI-O/
 
 - **Python 3.8+**
 - **CustomTkinter 5.2.2** - Interface gráfica moderna
-- **python-docx 1.1.2** - Manipulação de arquivos Word
+- **python-docx 1.1.2** - Manipulação de arquivos Word (.docx)
+- **pywin32 306** - Leitura de arquivos .doc antigos via Word COM
 - **google-generativeai 0.8.3** - Integração com Gemini AI
 
 ### Contribuindo

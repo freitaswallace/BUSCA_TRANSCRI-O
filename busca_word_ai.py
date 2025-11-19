@@ -32,12 +32,14 @@ except ImportError:
     print("ERRO: python-docx não instalado. Execute: pip install python-docx")
     sys.exit(1)
 
-# Biblioteca para ler arquivos .doc antigos (formato binário)
+# Biblioteca para ler arquivos .doc antigos (formato binário) - Windows COM
 try:
-    import subprocess
-    HAS_ANTIWORD = subprocess.run(['which', 'antiword'], capture_output=True).returncode == 0
-except:
-    HAS_ANTIWORD = False
+    import win32com.client
+    HAS_WORD_COM = True
+except ImportError:
+    HAS_WORD_COM = False
+    print("AVISO: pywin32 não instalado. Arquivos .doc antigos podem não funcionar.")
+    print("Execute: pip install pywin32")
 
 # Biblioteca Google Gemini
 try:
@@ -101,29 +103,48 @@ def normalize_text(text: str) -> str:
 def extract_text_from_old_doc(file_path: str) -> str:
     """
     Extrai texto de arquivos .doc antigos (formato binário)
-    Usa o comando 'strings' para extrair texto legível
+    Usa Microsoft Word via COM Automation (Windows)
     """
-    try:
-        result = subprocess.run(
-            ['strings', file_path],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+    if not HAS_WORD_COM:
+        print(f"[DEBUG] pywin32 não disponível, não é possível ler .doc antigo")
+        return ""
 
-        if result.returncode == 0:
-            # Limpar o texto extraído
-            lines = result.stdout.split('\n')
-            # Filtrar linhas muito curtas ou que parecem lixo binário
-            clean_lines = [
-                line.strip() for line in lines
-                if len(line.strip()) > 3 and not line.startswith('\\')
-            ]
-            return '\n'.join(clean_lines)
-        else:
-            return ""
+    word_app = None
+    doc = None
+    try:
+        print(f"[DEBUG] Abrindo .doc com Word COM: {file_path}")
+
+        # Criar instância do Word
+        word_app = win32com.client.Dispatch("Word.Application")
+        word_app.Visible = False
+        word_app.DisplayAlerts = 0  # Não mostrar alertas
+
+        # Abrir documento (usar caminho absoluto)
+        abs_path = os.path.abspath(file_path)
+        doc = word_app.Documents.Open(abs_path, ReadOnly=True)
+
+        # Extrair todo o texto
+        full_text = doc.Content.Text
+
+        # Fechar documento
+        doc.Close(False)
+        word_app.Quit()
+
+        print(f"[DEBUG] Texto extraído com sucesso ({len(full_text)} caracteres)")
+        return full_text
+
     except Exception as e:
-        print(f"[DEBUG] Erro ao extrair texto de .doc antigo: {e}")
+        print(f"[DEBUG] Erro ao extrair texto de .doc antigo com Word COM: {e}")
+
+        # Tentar fechar Word se ainda estiver aberto
+        try:
+            if doc:
+                doc.Close(False)
+            if word_app:
+                word_app.Quit()
+        except:
+            pass
+
         return ""
 
 
