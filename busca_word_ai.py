@@ -4,7 +4,7 @@
 Sistema de Busca Avançada em Arquivos Word com IA
 Utiliza Google Gemini para identificação inteligente de nomes e empresas
 Autor: Gerado automaticamente
-Versão: 1.0
+Versão: 2.0
 """
 
 import os
@@ -47,19 +47,22 @@ CONFIG_FILE = "config.json"
 EXTENSIONS = ['.docx', '.doc']
 NUM_THREADS = 10
 
-# Cores (Tema Neutro Moderno)
+# Cores (Tema Claro Agradável)
 COLORS = {
-    "bg_dark": "#1a1a1a",
-    "bg_medium": "#2d2d2d",
-    "bg_light": "#3a3a3a",
-    "fg_light": "#f5f5f5",
-    "fg_medium": "#cccccc",
-    "fg_dark": "#999999",
-    "accent": "#4a4a4a",
-    "success": "#4CAF50",
-    "error": "#f44336",
-    "warning": "#ff9800",
-    "info": "#2196F3"
+    "bg_main": "#F5F7FA",           # Fundo principal (azul acinzentado muito claro)
+    "bg_card": "#FFFFFF",            # Cards e frames (branco puro)
+    "bg_header": "#4A90E2",          # Cabeçalho (azul suave)
+    "bg_input": "#ECF0F1",           # Inputs (cinza muito claro)
+    "fg_primary": "#2C3E50",         # Texto primário (cinza escuro azulado)
+    "fg_secondary": "#7F8C8D",       # Texto secundário (cinza médio)
+    "fg_header": "#FFFFFF",          # Texto do cabeçalho (branco)
+    "accent": "#5DADE2",             # Botão principal (azul claro)
+    "accent_hover": "#3498DB",       # Hover do botão (azul médio)
+    "success": "#27AE60",            # Verde suave
+    "error": "#E74C3C",              # Vermelho suave
+    "warning": "#F39C12",            # Laranja suave
+    "info": "#3498DB",               # Azul informação
+    "border": "#BDC3C7"              # Bordas sutis
 }
 
 
@@ -121,7 +124,7 @@ class WordSearchEngine:
         self.total_files_processed = 0
         self.lock = threading.Lock()
 
-    def search_in_document(self, file_path: str, search_term: str, use_ai: bool = False,
+    def search_in_document(self, file_path: str, search_term: str, use_ai: bool = True,
                           api_key: str = None) -> Tuple[bool, str]:
         """
         Busca um termo em um documento Word
@@ -182,11 +185,11 @@ class WordSearchEngine:
     def check_with_ai(self, text: str, search_term: str, api_key: str) -> bool:
         """
         Usa Google Gemini para verificar se o texto menciona o termo buscado
-        Modelo: gemini-2.0-flash-lite
+        Modelo: gemini-2.0-flash-exp
         """
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')  # Usando o modelo especificado
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
             prompt = f"""
             Analise o seguinte texto e determine se há menção à pessoa ou empresa: "{search_term}"
@@ -199,7 +202,7 @@ class WordSearchEngine:
             Responda APENAS "SIM" ou "NÃO".
 
             Texto:
-            {text[:5000]}  # Limita a 5000 caracteres para economia
+            {text[:5000]}
             """
 
             response = model.generate_content(prompt)
@@ -248,7 +251,7 @@ class WordSearchEngine:
         # Sinalizar que esta thread terminou
         self.progress_queue.put(('thread_done', thread_id))
 
-    def search(self, search_term: str, use_ai: bool = False, api_key: str = None) -> bool:
+    def search(self, search_term: str, use_ai: bool = True, api_key: str = None) -> bool:
         """
         Inicia busca paralela
         Retorna True se iniciou com sucesso
@@ -331,9 +334,9 @@ class SearchApp(ctk.CTk):
         self.title("🔍 Busca Avançada em Transcrições - IA Integrada")
         self.geometry("1400x900")
 
-        # Configurar tema
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("dark-blue")
+        # Configurar tema CLARO
+        ctk.set_appearance_mode("light")
+        ctk.set_default_color_theme("blue")
 
         # Gerenciadores
         self.config_manager = ConfigManager()
@@ -347,12 +350,6 @@ class SearchApp(ctk.CTk):
         # Construir interface
         self.build_ui()
 
-        # Carregar API Key salva
-        saved_api_key = self.config_manager.get_api_key()
-        if saved_api_key:
-            self.api_key_entry.insert(0, saved_api_key)
-            self.save_key_var.set(True)
-
         # Iniciar monitoramento de progresso
         self.after(100, self.check_progress)
 
@@ -360,124 +357,122 @@ class SearchApp(ctk.CTk):
         """Constrói a interface gráfica"""
 
         # ===== FRAME PRINCIPAL =====
-        self.main_frame = ctk.CTkFrame(self, fg_color=COLORS["bg_dark"])
+        self.main_frame = ctk.CTkFrame(self, fg_color=COLORS["bg_main"])
         self.main_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # ===== TÍTULO =====
-        title_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_light"], height=80)
-        title_frame.pack(fill="x", padx=0, pady=0)
-        title_frame.pack_propagate(False)
+        # ===== CABEÇALHO =====
+        header_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_header"], height=100)
+        header_frame.pack(fill="x", padx=0, pady=0)
+        header_frame.pack_propagate(False)
 
+        # Container do cabeçalho (para alinhar título e botão de config)
+        header_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_container.pack(fill="both", expand=True)
+
+        # Título centralizado
         title_label = ctk.CTkLabel(
-            title_frame,
+            header_container,
             text="🔍 BUSCA AVANÇADA EM TRANSCRIÇÕES",
-            font=ctk.CTkFont(size=28, weight="bold"),
-            text_color=COLORS["fg_light"]
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=COLORS["fg_header"]
         )
-        title_label.pack(pady=20)
+        title_label.pack(pady=25)
 
-        # ===== CONFIGURAÇÃO API =====
-        api_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_medium"])
-        api_frame.pack(fill="x", padx=20, pady=(20, 10))
-
-        api_label = ctk.CTkLabel(
-            api_frame,
-            text="🔑 API Key Google Gemini:",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=COLORS["fg_light"]
-        )
-        api_label.pack(side="left", padx=10, pady=15)
-
-        self.api_key_entry = ctk.CTkEntry(
-            api_frame,
-            placeholder_text="Insira sua API Key do Google Gemini",
-            width=400,
-            height=35,
+        subtitle_label = ctk.CTkLabel(
+            header_container,
+            text="Powered by Google Gemini AI • 10 Threads Paralelas",
             font=ctk.CTkFont(size=12),
-            show="*"
+            text_color=COLORS["fg_header"]
         )
-        self.api_key_entry.pack(side="left", padx=10, pady=15)
+        subtitle_label.pack(pady=(0, 10))
 
-        self.save_key_var = ctk.BooleanVar(value=False)
-        save_key_check = ctk.CTkCheckBox(
-            api_frame,
-            text="Salvar Key",
-            variable=self.save_key_var,
-            font=ctk.CTkFont(size=12),
-            text_color=COLORS["fg_medium"]
+        # Botão de configuração (canto superior direito)
+        config_btn = ctk.CTkButton(
+            header_frame,
+            text="⚙️",
+            width=50,
+            height=50,
+            font=ctk.CTkFont(size=24),
+            command=self.show_config_dialog,
+            fg_color=COLORS["bg_card"],
+            text_color=COLORS["fg_primary"],
+            hover_color=COLORS["bg_input"],
+            corner_radius=25
         )
-        save_key_check.pack(side="left", padx=10, pady=15)
-
-        save_btn = ctk.CTkButton(
-            api_frame,
-            text="💾 Salvar",
-            width=100,
-            height=35,
-            command=self.save_api_key,
-            fg_color=COLORS["accent"],
-            hover_color=COLORS["bg_light"]
-        )
-        save_btn.pack(side="left", padx=5, pady=15)
+        config_btn.place(relx=0.98, rely=0.5, anchor="e")
 
         # ===== BUSCA =====
-        search_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_medium"])
-        search_frame.pack(fill="x", padx=20, pady=10)
+        search_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_card"], corner_radius=15)
+        search_frame.pack(fill="x", padx=30, pady=(30, 20))
+
+        # Container interno com padding
+        search_inner = ctk.CTkFrame(search_frame, fg_color="transparent")
+        search_inner.pack(fill="x", padx=20, pady=20)
 
         search_label = ctk.CTkLabel(
-            search_frame,
+            search_inner,
             text="👤 Nome ou Empresa:",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=COLORS["fg_light"]
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["fg_primary"]
         )
-        search_label.pack(side="left", padx=10, pady=15)
+        search_label.pack(anchor="w", pady=(0, 10))
+
+        # Container para input e botão
+        input_container = ctk.CTkFrame(search_inner, fg_color="transparent")
+        input_container.pack(fill="x")
 
         self.search_entry = ctk.CTkEntry(
-            search_frame,
+            input_container,
             placeholder_text="Digite o nome da pessoa ou empresa para buscar...",
-            width=500,
-            height=40,
-            font=ctk.CTkFont(size=14)
+            height=50,
+            font=ctk.CTkFont(size=16),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["fg_primary"],
+            border_width=2,
+            border_color=COLORS["border"],
+            corner_radius=10
         )
-        self.search_entry.pack(side="left", padx=10, pady=15)
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 15))
         self.search_entry.bind('<Return>', lambda e: self.start_search())
 
-        self.use_ai_var = ctk.BooleanVar(value=False)
-        use_ai_check = ctk.CTkCheckBox(
-            search_frame,
-            text="🤖 Usar IA (Gemini)",
-            variable=self.use_ai_var,
-            font=ctk.CTkFont(size=12),
-            text_color=COLORS["fg_medium"]
-        )
-        use_ai_check.pack(side="left", padx=10, pady=15)
-
         search_btn = ctk.CTkButton(
-            search_frame,
+            input_container,
             text="🔍 BUSCAR",
-            width=150,
-            height=40,
+            width=180,
+            height=50,
             command=self.start_search,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=COLORS["info"],
-            hover_color="#1976D2"
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"],
+            text_color="white",
+            corner_radius=10
         )
-        search_btn.pack(side="left", padx=10, pady=15)
+        search_btn.pack(side="right")
+
+        # Info IA sempre ativo
+        ai_info_label = ctk.CTkLabel(
+            search_inner,
+            text="🤖 Busca com IA sempre ativa • Prioriza termos em Negrito e Sublinhado",
+            font=ctk.CTkFont(size=12),
+            text_color=COLORS["fg_secondary"]
+        )
+        ai_info_label.pack(anchor="w", pady=(10, 0))
 
         # ===== INFO PASTA =====
-        info_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_dark"])
-        info_frame.pack(fill="x", padx=20, pady=5)
+        info_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        info_frame.pack(fill="x", padx=30, pady=(0, 10))
 
         info_label = ctk.CTkLabel(
             info_frame,
             text=f"📁 Pasta Base: {PASTA_BASE}",
             font=ctk.CTkFont(size=11),
-            text_color=COLORS["fg_dark"]
+            text_color=COLORS["fg_secondary"]
         )
-        info_label.pack(pady=5)
+        info_label.pack(anchor="w")
 
         # ===== CONTAINER DE RESULTADOS =====
-        results_container = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_dark"])
-        results_container.pack(fill="both", expand=True, padx=20, pady=10)
+        results_container = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        results_container.pack(fill="both", expand=True, padx=30, pady=(10, 20))
 
         # Configurar grid
         results_container.grid_columnconfigure(0, weight=1)
@@ -485,81 +480,182 @@ class SearchApp(ctk.CTk):
         results_container.grid_rowconfigure(0, weight=1)
 
         # ===== PAINEL DE RESULTADOS =====
-        results_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_medium"])
-        results_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        results_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
+        results_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+        results_header = ctk.CTkFrame(results_frame, fg_color=COLORS["success"], corner_radius=10, height=50)
+        results_header.pack(fill="x", padx=15, pady=15)
+        results_header.pack_propagate(False)
 
         results_title = ctk.CTkLabel(
-            results_frame,
+            results_header,
             text="📋 RESULTADOS",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["fg_light"]
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white"
         )
         results_title.pack(pady=10)
 
         # Lista de resultados com scrollbar
         self.results_textbox = ctk.CTkTextbox(
             results_frame,
-            font=ctk.CTkFont(size=12),
-            fg_color=COLORS["bg_dark"],
-            text_color=COLORS["fg_light"],
-            wrap="word"
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["fg_primary"],
+            wrap="word",
+            corner_radius=10
         )
-        self.results_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.results_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.results_textbox.bind('<Double-Button-1>', self.open_file_from_selection)
 
         # ===== PAINEL DE ERROS =====
-        errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_medium"])
-        errors_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
+        errors_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+
+        errors_header = ctk.CTkFrame(errors_frame, fg_color=COLORS["warning"], corner_radius=10, height=50)
+        errors_header.pack(fill="x", padx=15, pady=15)
+        errors_header.pack_propagate(False)
 
         errors_title = ctk.CTkLabel(
-            errors_frame,
+            errors_header,
             text="⚠️ ARQUIVOS NÃO ACESSADOS",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["warning"]
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white"
         )
         errors_title.pack(pady=10)
 
         self.errors_textbox = ctk.CTkTextbox(
             errors_frame,
-            font=ctk.CTkFont(size=11),
-            fg_color=COLORS["bg_dark"],
-            text_color=COLORS["fg_medium"],
-            wrap="word"
+            font=ctk.CTkFont(size=12),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["fg_secondary"],
+            wrap="word",
+            corner_radius=10
         )
-        self.errors_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.errors_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
         # ===== STATUS BAR =====
-        status_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_light"], height=40)
+        status_frame = ctk.CTkFrame(self.main_frame, fg_color=COLORS["bg_header"], height=50)
         status_frame.pack(fill="x", padx=0, pady=0)
         status_frame.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
             status_frame,
             text="✅ Sistema pronto para busca...",
-            font=ctk.CTkFont(size=12),
-            text_color=COLORS["fg_medium"]
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["fg_header"]
         )
-        self.status_label.pack(side="left", padx=20, pady=10)
+        self.status_label.pack(side="left", padx=30, pady=15)
 
-    def save_api_key(self):
-        """Salva a API Key se o checkbox estiver marcado"""
-        api_key = self.api_key_entry.get().strip()
+    def show_config_dialog(self):
+        """Mostra janela de configuração da API Key"""
+        # Criar janela modal
+        config_window = ctk.CTkToplevel(self)
+        config_window.title("⚙️ Configurações")
+        config_window.geometry("500x300")
+        config_window.resizable(False, False)
 
-        if not api_key:
-            messagebox.showwarning("Atenção", "Por favor, insira a API Key antes de salvar.")
-            return
+        # Centralizar janela
+        config_window.transient(self)
+        config_window.grab_set()
 
-        if self.save_key_var.get():
+        # Frame principal
+        main_config_frame = ctk.CTkFrame(config_window, fg_color=COLORS["bg_main"])
+        main_config_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Título
+        title_config = ctk.CTkLabel(
+            main_config_frame,
+            text="🔑 Configuração da API Key",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=COLORS["fg_primary"]
+        )
+        title_config.pack(pady=20)
+
+        # Frame do conteúdo
+        content_frame = ctk.CTkFrame(main_config_frame, fg_color=COLORS["bg_card"], corner_radius=15)
+        content_frame.pack(fill="both", expand=True, padx=30, pady=(10, 20))
+
+        # Instrução
+        instruction_label = ctk.CTkLabel(
+            content_frame,
+            text="Insira sua API Key do Google Gemini:",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["fg_primary"]
+        )
+        instruction_label.pack(pady=(20, 10), padx=20)
+
+        # Campo de entrada
+        api_key_entry = ctk.CTkEntry(
+            content_frame,
+            placeholder_text="Cole sua API Key aqui...",
+            width=400,
+            height=40,
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["fg_primary"],
+            border_width=2,
+            border_color=COLORS["border"]
+        )
+        api_key_entry.pack(pady=10, padx=20)
+
+        # Carregar API Key salva
+        saved_key = self.config_manager.get_api_key()
+        if saved_key:
+            api_key_entry.insert(0, saved_key)
+
+        # Link para obter API Key
+        link_label = ctk.CTkLabel(
+            content_frame,
+            text="🔗 Obter API Key: https://makersuite.google.com/app/apikey",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["info"],
+            cursor="hand2"
+        )
+        link_label.pack(pady=(5, 15), padx=20)
+
+        # Função para salvar
+        def save_and_close():
+            api_key = api_key_entry.get().strip()
+            if not api_key:
+                messagebox.showwarning("Atenção", "Por favor, insira a API Key.")
+                return
+
             if self.config_manager.set_api_key(api_key):
                 messagebox.showinfo("Sucesso", "API Key salva com sucesso!")
-                self.status_label.configure(text="✅ API Key salva com sucesso")
+                self.status_label.configure(text="✅ API Key configurada e salva")
+                config_window.destroy()
             else:
                 messagebox.showerror("Erro", "Erro ao salvar API Key")
-        else:
-            # Remover API Key salva
-            self.config_manager.set_api_key("")
-            messagebox.showinfo("Info", "API Key removida da configuração")
-            self.status_label.configure(text="ℹ️ API Key não está mais salva")
+
+        # Botões
+        buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        buttons_frame.pack(pady=(10, 20))
+
+        save_btn = ctk.CTkButton(
+            buttons_frame,
+            text="💾 Salvar",
+            width=150,
+            height=40,
+            command=save_and_close,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=COLORS["success"],
+            hover_color="#229954",
+            text_color="white"
+        )
+        save_btn.pack(side="left", padx=10)
+
+        cancel_btn = ctk.CTkButton(
+            buttons_frame,
+            text="✕ Cancelar",
+            width=150,
+            height=40,
+            command=config_window.destroy,
+            font=ctk.CTkFont(size=14),
+            fg_color=COLORS["error"],
+            hover_color="#C0392B",
+            text_color="white"
+        )
+        cancel_btn.pack(side="left", padx=10)
 
     def start_search(self):
         """Inicia o processo de busca"""
@@ -572,11 +668,15 @@ class SearchApp(ctk.CTk):
             messagebox.showwarning("Atenção", "Por favor, digite um nome ou empresa para buscar.")
             return
 
-        use_ai = self.use_ai_var.get()
-        api_key = self.api_key_entry.get().strip()
+        # IA sempre ativa
+        use_ai = True
+        api_key = self.config_manager.get_api_key()
 
-        if use_ai and not api_key:
-            messagebox.showwarning("Atenção", "Por favor, insira a API Key do Gemini para usar IA.")
+        if not api_key:
+            messagebox.showwarning(
+                "Configuração Necessária",
+                "Por favor, configure a API Key do Gemini clicando no botão ⚙️ no canto superior direito."
+            )
             return
 
         # Limpar resultados anteriores
@@ -586,7 +686,7 @@ class SearchApp(ctk.CTk):
         # Atualizar status
         self.search_in_progress = True
         self.start_time = time.time()
-        self.status_label.configure(text="🔄 Buscando arquivos...")
+        self.status_label.configure(text="🔄 Buscando arquivos com IA...")
 
         # Mostrar janela de progresso
         self.show_progress_window()
@@ -603,52 +703,61 @@ class SearchApp(ctk.CTk):
         """Mostra janela de progresso modal"""
         self.progress_window = ctk.CTkToplevel(self)
         self.progress_window.title("Processando...")
-        self.progress_window.geometry("400x250")
+        self.progress_window.geometry("450x300")
         self.progress_window.resizable(False, False)
 
         # Centralizar janela
         self.progress_window.transient(self)
         self.progress_window.grab_set()
 
+        # Frame principal
+        progress_main = ctk.CTkFrame(self.progress_window, fg_color=COLORS["bg_card"])
+        progress_main.pack(fill="both", expand=True)
+
         # Ícone animado
         self.progress_icon = ctk.CTkLabel(
-            self.progress_window,
+            progress_main,
             text="⏳",
-            font=ctk.CTkFont(size=50)
+            font=ctk.CTkFont(size=60)
         )
-        self.progress_icon.pack(pady=20)
+        self.progress_icon.pack(pady=(30, 10))
 
         # Mensagem
         self.progress_message = ctk.CTkLabel(
-            self.progress_window,
-            text="Processando arquivos...",
-            font=ctk.CTkFont(size=16, weight="bold")
+            progress_main,
+            text="Processando arquivos com IA...",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=COLORS["fg_primary"]
         )
         self.progress_message.pack(pady=10)
 
         # Contador de arquivos
         self.progress_count = ctk.CTkLabel(
-            self.progress_window,
+            progress_main,
             text="Arquivos encontrados: 0",
-            font=ctk.CTkFont(size=14)
+            font=ctk.CTkFont(size=15),
+            text_color=COLORS["fg_secondary"]
         )
         self.progress_count.pack(pady=5)
 
         # Tempo decorrido
         self.progress_time = ctk.CTkLabel(
-            self.progress_window,
+            progress_main,
             text="Tempo: 00:00",
-            font=ctk.CTkFont(size=14)
+            font=ctk.CTkFont(size=15),
+            text_color=COLORS["fg_secondary"]
         )
         self.progress_time.pack(pady=5)
 
         # Barra de progresso indeterminada
         self.progress_bar = ctk.CTkProgressBar(
-            self.progress_window,
+            progress_main,
             mode="indeterminate",
-            width=350
+            width=380,
+            height=10,
+            progress_color=COLORS["accent"]
         )
-        self.progress_bar.pack(pady=20)
+        self.progress_bar.pack(pady=(20, 30))
         self.progress_bar.start()
 
     def check_progress(self):
@@ -781,6 +890,7 @@ def main():
     print(f"📁 Pasta Base: {PASTA_BASE}")
     print(f"🧵 Threads: {NUM_THREADS}")
     print(f"📝 Extensões: {', '.join(EXTENSIONS)}")
+    print(f"🤖 IA: Sempre ativa (Google Gemini)")
     print("=" * 60)
     print()
 
