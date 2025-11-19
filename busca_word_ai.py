@@ -803,26 +803,13 @@ class SearchApp(ctk.CTk):
         )
         results_title.pack(pady=10)
 
-        # Lista de resultados com scrollbar
-        self.results_textbox = ctk.CTkTextbox(
+        # Frame scrollable para resultados modernos
+        self.results_scrollable = ctk.CTkScrollableFrame(
             results_frame,
-            font=ctk.CTkFont(size=13),
             fg_color=COLORS["bg_input"],
-            text_color=COLORS["fg_primary"],
-            wrap="word",
             corner_radius=10
         )
-        self.results_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
-        self.results_textbox.bind('<Double-Button-1>', self.open_file_from_selection)
-
-        # Configurar tags de formatação para resultados (apenas cores, CustomTkinter não permite font em tags)
-        self.results_textbox.tag_config("success", foreground=COLORS["success"])
-        self.results_textbox.tag_config("number", foreground=COLORS["fg_secondary"])
-        self.results_textbox.tag_config("filename", foreground=COLORS["accent"])
-        self.results_textbox.tag_config("arrow", foreground=COLORS["fg_secondary"])
-        self.results_textbox.tag_config("context", foreground=COLORS["fg_primary"])
-        self.results_textbox.tag_config("separator", foreground=COLORS["border"])
-        self.results_textbox.tag_config("tip", foreground=COLORS["info"])
+        self.results_scrollable.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
         # ===== PAINEL DE ERROS =====
         errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
@@ -1010,8 +997,11 @@ class SearchApp(ctk.CTk):
             return
 
         # Limpar resultados anteriores
-        self.results_textbox.delete("1.0", "end")
+        self._clear_results()
         self.errors_textbox.delete("1.0", "end")
+
+        # Armazenar termo de busca para usar em finish_search
+        self.current_search_term = search_term
 
         # Atualizar status
         self.search_in_progress = True
@@ -1144,24 +1134,41 @@ class SearchApp(ctk.CTk):
         else:
             print(f"[DEBUG] check_progress parando porque search_in_progress=False")
 
-    def _extract_relevant_context(self, context: str) -> str:
-        """Extrai o trecho relevante do contexto para exibição limpa"""
+    def _extract_name_from_context(self, context: str, search_term: str) -> str:
+        """Extrai apenas o nome encontrado do contexto"""
         if not context or context == "N/A":
-            return "Encontrado no documento"
+            return search_term.upper()
 
         # Remover prefixos técnicos
         context = context.replace("[.DOC ANTIGO] ", "")
         context = context.replace("[IA - .DOC ANTIGO] ", "")
+        context = context.replace("Menção encontrada no contexto", "")
 
-        # Se for muito longo, truncar
-        max_length = 150
-        if len(context) > max_length:
-            context = context[:max_length] + "..."
-
-        # Limpar caracteres estranhos e espaços extras
+        # Limpar e normalizar
         context = ' '.join(context.split())
 
-        return context
+        # Procurar por sequências de palavras em maiúsculas (geralmente nomes)
+        import re
+        # Padrão: sequência de 2-5 palavras em maiúsculas
+        pattern = r'\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]{2,50}\b'
+        matches = re.findall(pattern, context)
+
+        if matches:
+            # Retornar a primeira sequência encontrada que contenha pelo menos uma palavra do termo de busca
+            search_words = normalize_text(search_term).split()
+            for match in matches:
+                match_normalized = normalize_text(match)
+                if any(word in match_normalized for word in search_words):
+                    return match.strip()
+
+        # Se não encontrou, retornar o termo de busca em maiúsculas
+        return search_term.upper()
+
+    def _clear_results(self):
+        """Limpa os resultados anteriores"""
+        # Destruir todos os widgets do frame scrollable
+        for widget in self.results_scrollable.winfo_children():
+            widget.destroy()
 
     def finish_search(self):
         """Finaliza a busca e exibe resultados"""
@@ -1187,31 +1194,81 @@ class SearchApp(ctk.CTk):
 
         print(f"[DEBUG] Exibindo {num_found} resultados na GUI...")
 
-        if num_found > 0:
-            self.results_textbox.insert("end", f"✅ {num_found} arquivo(s) encontrado(s)!\n\n", "success")
-            self.results_textbox.insert("end", "─" * 80 + "\n\n", "separator")
+        # Limpar resultados anteriores
+        self._clear_results()
 
+        if num_found > 0:
+            # Header com contador
+            header_label = ctk.CTkLabel(
+                self.results_scrollable,
+                text=f"✅ {num_found} arquivo(s) encontrado(s)!",
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color=COLORS["success"]
+            )
+            header_label.pack(pady=(10, 20), anchor="w")
+
+            # Criar um botão moderno para cada resultado
             for i, (file_path, context) in enumerate(self.search_engine.files_found, 1):
                 filename = os.path.basename(file_path)
 
-                # Extrair o conteúdo relevante do contexto
-                context_clean = self._extract_relevant_context(context)
+                # Extrair apenas o nome encontrado
+                name_found = self._extract_name_from_context(context, self.current_search_term)
 
-                # Formato: Arquivo.doc → Trecho encontrado
-                self.results_textbox.insert("end", f"{i}. ", "number")
-                self.results_textbox.insert("end", f"📄 {filename}", "filename")
-                self.results_textbox.insert("end", "  →  ", "arrow")
-                self.results_textbox.insert("end", f"{context_clean}\n", "context")
+                # Frame para cada resultado
+                result_frame = ctk.CTkFrame(
+                    self.results_scrollable,
+                    fg_color=COLORS["bg_card"],
+                    corner_radius=10,
+                    height=60
+                )
+                result_frame.pack(fill="x", pady=5)
+                result_frame.pack_propagate(False)
 
-                # Linha separadora sutil
-                self.results_textbox.insert("end", "   " + "·" * 70 + "\n\n", "separator")
+                # Botão do arquivo (ocupa ~50% do espaço)
+                file_button = ctk.CTkButton(
+                    result_frame,
+                    text=f"📄 {filename}",
+                    font=ctk.CTkFont(size=13, weight="bold"),
+                    fg_color=COLORS["accent"],
+                    hover_color=COLORS["accent_hover"],
+                    text_color="white",
+                    corner_radius=8,
+                    command=lambda fp=file_path: self.open_file(fp),
+                    anchor="w"
+                )
+                file_button.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-            self.results_textbox.insert("end", "💡 Dica: Clique duas vezes em um arquivo para abrir\n", "tip")
+                # Label com o nome encontrado (ocupa ~50% do espaço)
+                name_label = ctk.CTkLabel(
+                    result_frame,
+                    text=f"→  {name_found}",
+                    font=ctk.CTkFont(size=13),
+                    text_color=COLORS["fg_primary"],
+                    anchor="w"
+                )
+                name_label.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=10)
+
+            # Dica no final
+            tip_label = ctk.CTkLabel(
+                self.results_scrollable,
+                text="💡 Clique no botão do arquivo para abrir",
+                font=ctk.CTkFont(size=11),
+                text_color=COLORS["info"]
+            )
+            tip_label.pack(pady=(20, 10), anchor="w")
+
             self.status_label.configure(
                 text=f"✅ Busca concluída! {num_found} arquivo(s) encontrado(s) em {minutes:02d}:{seconds:02d}"
             )
         else:
-            self.results_textbox.insert("end", "❌ Nenhum arquivo encontrado.\n\n")
+            # Mensagem de nenhum resultado
+            no_result_label = ctk.CTkLabel(
+                self.results_scrollable,
+                text="❌ Nenhum arquivo encontrado",
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color=COLORS["error"]
+            )
+            no_result_label.pack(pady=50)
             self.status_label.configure(text=f"⚠️ Nenhum resultado encontrado em {minutes:02d}:{seconds:02d}")
 
         # Exibir erros
