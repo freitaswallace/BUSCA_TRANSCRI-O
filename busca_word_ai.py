@@ -185,11 +185,11 @@ class WordSearchEngine:
     def check_with_ai(self, text: str, search_term: str, api_key: str) -> bool:
         """
         Usa Google Gemini para verificar se o texto menciona o termo buscado
-        Modelo: gemini-2.0-flash-exp
+        Modelo: gemini-2.5-flash-lite
         """
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
             prompt = f"""
             Analise o seguinte texto e determine se há menção à pessoa ou empresa: "{search_term}"
@@ -356,8 +356,8 @@ class SearchApp(ctk.CTk):
     def build_ui(self):
         """Constrói a interface gráfica"""
 
-        # ===== FRAME PRINCIPAL =====
-        self.main_frame = ctk.CTkFrame(self, fg_color=COLORS["bg_main"])
+        # ===== FRAME PRINCIPAL COM SCROLL =====
+        self.main_frame = ctk.CTkScrollableFrame(self, fg_color=COLORS["bg_main"])
         self.main_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
         # ===== CABEÇALHO =====
@@ -551,12 +551,20 @@ class SearchApp(ctk.CTk):
         # Criar janela modal
         config_window = ctk.CTkToplevel(self)
         config_window.title("⚙️ Configurações")
-        config_window.geometry("500x300")
+        config_window.geometry("650x450")
         config_window.resizable(False, False)
 
-        # Centralizar janela
+        # Centralizar janela em relação à janela principal
         config_window.transient(self)
         config_window.grab_set()
+
+        # Atualizar para obter dimensões corretas
+        config_window.update_idletasks()
+
+        # Centralizar
+        x = self.winfo_x() + (self.winfo_width() // 2) - (650 // 2)
+        y = self.winfo_y() + (self.winfo_height() // 2) - (450 // 2)
+        config_window.geometry(f"650x450+{x}+{y}")
 
         # Frame principal
         main_config_frame = ctk.CTkFrame(config_window, fg_color=COLORS["bg_main"])
@@ -566,37 +574,38 @@ class SearchApp(ctk.CTk):
         title_config = ctk.CTkLabel(
             main_config_frame,
             text="🔑 Configuração da API Key",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=26, weight="bold"),
             text_color=COLORS["fg_primary"]
         )
-        title_config.pack(pady=20)
+        title_config.pack(pady=30)
 
         # Frame do conteúdo
         content_frame = ctk.CTkFrame(main_config_frame, fg_color=COLORS["bg_card"], corner_radius=15)
-        content_frame.pack(fill="both", expand=True, padx=30, pady=(10, 20))
+        content_frame.pack(fill="both", expand=True, padx=40, pady=(10, 30))
 
         # Instrução
         instruction_label = ctk.CTkLabel(
             content_frame,
             text="Insira sua API Key do Google Gemini:",
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color=COLORS["fg_primary"]
         )
-        instruction_label.pack(pady=(20, 10), padx=20)
+        instruction_label.pack(pady=(30, 15), padx=30)
 
         # Campo de entrada
         api_key_entry = ctk.CTkEntry(
             content_frame,
             placeholder_text="Cole sua API Key aqui...",
-            width=400,
-            height=40,
-            font=ctk.CTkFont(size=13),
+            width=520,
+            height=50,
+            font=ctk.CTkFont(size=14),
             fg_color=COLORS["bg_input"],
             text_color=COLORS["fg_primary"],
             border_width=2,
-            border_color=COLORS["border"]
+            border_color=COLORS["border"],
+            corner_radius=10
         )
-        api_key_entry.pack(pady=10, padx=20)
+        api_key_entry.pack(pady=15, padx=30)
 
         # Carregar API Key salva
         saved_key = self.config_manager.get_api_key()
@@ -607,11 +616,11 @@ class SearchApp(ctk.CTk):
         link_label = ctk.CTkLabel(
             content_frame,
             text="🔗 Obter API Key: https://makersuite.google.com/app/apikey",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=13),
             text_color=COLORS["info"],
             cursor="hand2"
         )
-        link_label.pack(pady=(5, 15), padx=20)
+        link_label.pack(pady=(10, 20), padx=30)
 
         # Função para salvar
         def save_and_close():
@@ -629,33 +638,35 @@ class SearchApp(ctk.CTk):
 
         # Botões
         buttons_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-        buttons_frame.pack(pady=(10, 20))
+        buttons_frame.pack(pady=(15, 30))
 
         save_btn = ctk.CTkButton(
             buttons_frame,
             text="💾 Salvar",
-            width=150,
-            height=40,
+            width=200,
+            height=50,
             command=save_and_close,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             fg_color=COLORS["success"],
             hover_color="#229954",
-            text_color="white"
+            text_color="white",
+            corner_radius=10
         )
-        save_btn.pack(side="left", padx=10)
+        save_btn.pack(side="left", padx=15)
 
         cancel_btn = ctk.CTkButton(
             buttons_frame,
             text="✕ Cancelar",
-            width=150,
-            height=40,
+            width=200,
+            height=50,
             command=config_window.destroy,
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=16),
             fg_color=COLORS["error"],
             hover_color="#C0392B",
-            text_color="white"
+            text_color="white",
+            corner_radius=10
         )
-        cancel_btn.pack(side="left", padx=10)
+        cancel_btn.pack(side="left", padx=15)
 
     def start_search(self):
         """Inicia o processo de busca"""
