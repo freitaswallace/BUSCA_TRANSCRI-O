@@ -56,7 +56,7 @@ except ImportError:
 PASTA_BASE = r"\\192.168.20.100\trabalho\Transcrições"
 CONFIG_FILE = "config.json"
 EXTENSIONS = ['.docx', '.doc']
-NUM_THREADS = 10
+NUM_THREADS = 3  # Reduzido para evitar sobrecarga no Word COM com arquivos de rede
 
 # Cores (Tema Claro Agradável)
 COLORS = {
@@ -105,6 +105,7 @@ def extract_text_from_old_doc(file_path: str) -> str:
     """
     Extrai texto de arquivos .doc antigos (formato binário)
     Usa Microsoft Word via COM Automation (Windows)
+    Com retry para arquivos de rede
     """
     if not HAS_WORD_COM:
         print(f"[DEBUG] pywin32 não disponível, não é possível ler .doc antigo")
@@ -113,44 +114,52 @@ def extract_text_from_old_doc(file_path: str) -> str:
     # CRÍTICO: Inicializar COM para esta thread
     pythoncom.CoInitialize()
 
-    word_app = None
-    doc = None
     try:
-        print(f"[DEBUG] Abrindo .doc com Word COM: {file_path}")
+        max_retries = 2
+        for attempt in range(max_retries):
+            word_app = None
+            doc = None
+            try:
+                if attempt > 0:
+                    print(f"[DEBUG] Tentativa {attempt + 1} de {max_retries} para: {os.path.basename(file_path)}")
+                    time.sleep(0.5)  # Pequeno delay entre tentativas
 
-        # Criar instância do Word
-        word_app = win32com.client.Dispatch("Word.Application")
-        word_app.Visible = False
-        word_app.DisplayAlerts = 0  # Não mostrar alertas
+                # Criar instância do Word
+                word_app = win32com.client.Dispatch("Word.Application")
+                word_app.Visible = False
+                word_app.DisplayAlerts = 0  # Não mostrar alertas
 
-        # Abrir documento (usar caminho absoluto)
-        abs_path = os.path.abspath(file_path)
-        doc = word_app.Documents.Open(abs_path, ReadOnly=True)
+                # Abrir documento (usar caminho absoluto para arquivos locais, path original para rede)
+                doc = word_app.Documents.Open(file_path, ReadOnly=True, ConfirmConversions=False)
 
-        # Extrair todo o texto
-        full_text = doc.Content.Text
+                # Extrair todo o texto
+                full_text = doc.Content.Text
 
-        # Fechar documento
-        doc.Close(False)
-        word_app.Quit()
-
-        print(f"[DEBUG] Texto extraído com sucesso ({len(full_text)} caracteres)")
-        return full_text
-
-    except Exception as e:
-        print(f"[DEBUG] Erro ao extrair texto de .doc antigo com Word COM: {e}")
-
-        # Tentar fechar Word se ainda estiver aberto
-        try:
-            if doc:
+                # Fechar documento
                 doc.Close(False)
-            if word_app:
                 word_app.Quit()
-        except:
-            pass
+
+                return full_text
+
+            except Exception as e:
+                error_msg = str(e)
+
+                # Tentar fechar Word se ainda estiver aberto
+                try:
+                    if doc:
+                        doc.Close(False)
+                    if word_app:
+                        word_app.Quit()
+                except:
+                    pass
+
+                # Se é a última tentativa ou erro não é de rede, desistir
+                if attempt == max_retries - 1 or "Package not found" not in error_msg:
+                    if attempt == 0:
+                        print(f"[DEBUG] Erro ao ler {os.path.basename(file_path)}: {error_msg[:50]}")
+                    return ""
 
         return ""
-
     finally:
         # CRÍTICO: Sempre desinicializar COM
         pythoncom.CoUninitialize()
