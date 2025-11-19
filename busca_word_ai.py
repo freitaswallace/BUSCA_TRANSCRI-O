@@ -53,7 +53,7 @@ except ImportError:
 # ===========================
 # CONFIGURAÇÕES GLOBAIS
 # ===========================
-PASTA_BASE = r"C:\Users\Usuario\Downloads\teste"
+PASTA_BASE = r"\\192.168.20.100\trabalho\Transcrições"
 CONFIG_FILE = "config.json"
 EXTENSIONS = ['.docx', '.doc']
 NUM_THREADS = 10
