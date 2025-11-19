@@ -32,6 +32,13 @@ except ImportError:
     print("ERRO: python-docx não instalado. Execute: pip install python-docx")
     sys.exit(1)
 
+# Biblioteca para ler arquivos .doc antigos (formato binário)
+try:
+    import subprocess
+    HAS_ANTIWORD = subprocess.run(['which', 'antiword'], capture_output=True).returncode == 0
+except:
+    HAS_ANTIWORD = False
+
 # Biblioteca Google Gemini
 try:
     import google.generativeai as genai
@@ -89,6 +96,51 @@ def normalize_text(text: str) -> str:
     result = ' '.join(result.split())
 
     return result
+
+
+def extract_text_from_old_doc(file_path: str) -> str:
+    """
+    Extrai texto de arquivos .doc antigos (formato binário)
+    Usa o comando 'strings' para extrair texto legível
+    """
+    try:
+        result = subprocess.run(
+            ['strings', file_path],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            # Limpar o texto extraído
+            lines = result.stdout.split('\n')
+            # Filtrar linhas muito curtas ou que parecem lixo binário
+            clean_lines = [
+                line.strip() for line in lines
+                if len(line.strip()) > 3 and not line.startswith('\\')
+            ]
+            return '\n'.join(clean_lines)
+        else:
+            return ""
+    except Exception as e:
+        print(f"[DEBUG] Erro ao extrair texto de .doc antigo: {e}")
+        return ""
+
+
+def is_old_doc_format(file_path: str) -> bool:
+    """
+    Verifica se o arquivo é .doc antigo (formato binário)
+    """
+    try:
+        # Tentar abrir com python-docx
+        doc = Document(file_path)
+        return False  # É .docx (formato novo)
+    except Exception as e:
+        # Se der erro, provavelmente é .doc antigo
+        error_msg = str(e).lower()
+        if 'not a word file' in error_msg or 'content type' in error_msg:
+            return True
+        return False
 
 
 # ===========================
@@ -158,9 +210,16 @@ class WordSearchEngine:
         Prioriza termos em negrito e sublinhado
         Ignora acentos na comparação
         Busca flexível: encontra mesmo com palavras no meio
+        Suporta .doc (antigo) e .docx (novo)
         Retorna (encontrado: bool, contexto: str)
         """
         try:
+            # Verificar se é .doc antigo (formato binário)
+            if is_old_doc_format(file_path):
+                print(f"[DEBUG] Arquivo .doc ANTIGO detectado! Usando extração de texto...")
+                return self.search_in_old_doc(file_path, search_term, use_ai, api_key)
+
+            # Arquivo .docx moderno
             doc = Document(file_path)
             # Normalizar termo de busca (remove acentos e converte para maiúsculas)
             search_term_normalized = normalize_text(search_term)
@@ -270,6 +329,94 @@ class WordSearchEngine:
             # Arquivo bloqueado
             return False, "LOCKED"
         except Exception as e:
+            return False, f"ERROR: {str(e)}"
+
+    def search_in_old_doc(self, file_path: str, search_term: str, use_ai: bool = False,
+                         api_key: str = None) -> Tuple[bool, str]:
+        """
+        Busca em arquivos .doc antigos (formato binário)
+        Usa extração de texto com 'strings'
+        """
+        try:
+            # Extrair texto do arquivo .doc antigo
+            full_text = extract_text_from_old_doc(file_path)
+
+            if not full_text:
+                print(f"[DEBUG] Não foi possível extrair texto do .doc antigo")
+                return False, "ERROR: Não foi possível ler arquivo .doc antigo"
+
+            print(f"[DEBUG] Texto extraído do .doc antigo ({len(full_text)} caracteres)")
+
+            # Normalizar termo de busca
+            search_term_normalized = normalize_text(search_term)
+            search_words = search_term_normalized.split()
+
+            print(f"[DEBUG] Buscando '{search_term}' normalizado para '{search_term_normalized}'")
+            print(f"[DEBUG] Palavras: {search_words}")
+
+            # BUSCAR NO TEXTO COMPLETO (não linha por linha, pois nomes podem estar quebrados)
+            full_text_normalized = normalize_text(full_text)
+
+            # Verificar se todas as palavras estão no documento
+            all_words_in_document = all(word in full_text_normalized for word in search_words)
+
+            if not all_words_in_document:
+                print(f"[DEBUG] Nem todas as palavras encontradas no documento")
+                # Mostrar quais palavras faltam
+                for word in search_words:
+                    if word not in full_text_normalized:
+                        print(f"[DEBUG] Palavra NÃO encontrada: '{word}'")
+                    else:
+                        print(f"[DEBUG] Palavra encontrada: '{word}'")
+
+            # Dividir texto em linhas e procurar contextos
+            lines = full_text.split('\n')
+            found_contexts = []
+
+            # ESTRATÉGIA 1: Buscar em blocos de 3 linhas consecutivas
+            # (caso o nome esteja quebrado entre linhas)
+            for idx in range(len(lines)-2):
+                block = ' '.join(lines[idx:idx+3])
+                block_normalized = normalize_text(block)
+
+                if all(word in block_normalized for word in search_words):
+                    print(f"[DEBUG] ✓✓✓ MATCH em bloco (linhas {idx}-{idx+2})!")
+                    found_contexts.append(block[:200])
+
+            # ESTRATÉGIA 2: Buscar em linhas individuais
+            for idx, line in enumerate(lines):
+                if not line.strip():
+                    continue
+
+                line_normalized = normalize_text(line)
+
+                # Busca flexível: todas as palavras devem estar presentes
+                all_words_found = all(word in line_normalized for word in search_words)
+
+                if all_words_found:
+                    print(f"[DEBUG] ✓✓✓ MATCH ENCONTRADO na linha {idx}!")
+                    print(f"[DEBUG] Texto: '{line[:150]}'")
+                    if line[:200] not in found_contexts:  # Evitar duplicatas
+                        found_contexts.append(line[:200])
+
+            print(f"[DEBUG] Total de contextos encontrados em .doc antigo: {len(found_contexts)}")
+
+            if found_contexts:
+                context = " | ".join(found_contexts[:3])
+                return True, f"[.DOC ANTIGO] {context}"
+
+            # Se não encontrou e IA está ativada
+            if use_ai and api_key:
+                print(f"[DEBUG] Tentando busca com IA em .doc antigo...")
+                with self.ai_semaphore:
+                    ai_result = self.check_with_ai(full_text, search_term, api_key)
+                    if ai_result:
+                        return True, f"[IA - .DOC ANTIGO] Menção encontrada no contexto"
+
+            return False, ""
+
+        except Exception as e:
+            print(f"[DEBUG] Erro ao processar .doc antigo: {e}")
             return False, f"ERROR: {str(e)}"
 
     def check_with_ai(self, text: str, search_term: str, api_key: str) -> bool:
