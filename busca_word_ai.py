@@ -815,14 +815,14 @@ class SearchApp(ctk.CTk):
         self.results_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.results_textbox.bind('<Double-Button-1>', self.open_file_from_selection)
 
-        # Configurar tags de formatação para resultados
-        self.results_textbox.tag_config("success", foreground=COLORS["success"], font=ctk.CTkFont(size=14, weight="bold"))
-        self.results_textbox.tag_config("number", foreground=COLORS["fg_secondary"], font=ctk.CTkFont(size=13, weight="bold"))
-        self.results_textbox.tag_config("filename", foreground=COLORS["accent"], font=ctk.CTkFont(size=13, weight="bold"))
+        # Configurar tags de formatação para resultados (apenas cores, CustomTkinter não permite font em tags)
+        self.results_textbox.tag_config("success", foreground=COLORS["success"])
+        self.results_textbox.tag_config("number", foreground=COLORS["fg_secondary"])
+        self.results_textbox.tag_config("filename", foreground=COLORS["accent"])
         self.results_textbox.tag_config("arrow", foreground=COLORS["fg_secondary"])
-        self.results_textbox.tag_config("context", foreground=COLORS["fg_primary"], font=ctk.CTkFont(size=12))
+        self.results_textbox.tag_config("context", foreground=COLORS["fg_primary"])
         self.results_textbox.tag_config("separator", foreground=COLORS["border"])
-        self.results_textbox.tag_config("tip", foreground=COLORS["info"], font=ctk.CTkFont(size=11, slant="italic"))
+        self.results_textbox.tag_config("tip", foreground=COLORS["info"])
 
         # ===== PAINEL DE ERROS =====
         errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
