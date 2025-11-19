@@ -503,6 +503,7 @@ class WordSearchEngine:
                 if found:
                     with self.lock:
                         self.files_found.append((file_path, context))
+                        print(f"[DEBUG] Thread {thread_id} - Adicionado a files_found. Total agora: {len(self.files_found)}")
                     self.results_queue.put(('found', file_path, context))
                     print(f"[DEBUG] Thread {thread_id} - ENCONTRADO: {filename}")
                 elif context == "LOCKED":
@@ -598,7 +599,8 @@ class WordSearchEngine:
         def monitor_threads():
             for t in threads:
                 t.join()
-            self.progress_queue.put(('complete', None))
+            print(f"[DEBUG] Todas as threads finalizadas, sinalizando conclusão...")
+            self.progress_queue.put(('complete', None, None))
 
         monitor_thread = threading.Thread(target=monitor_threads, daemon=True)
         monitor_thread.start()
@@ -1090,8 +1092,10 @@ class SearchApp(ctk.CTk):
         try:
             while True:
                 msg_type, data, extra = self.search_engine.progress_queue.get_nowait()
+                print(f"[DEBUG] check_progress recebeu: msg_type={msg_type}, data={data}")
 
                 if msg_type == 'complete':
+                    print(f"[DEBUG] Mensagem 'complete' recebida, chamando finish_search()...")
                     self.finish_search()
                     break
                 elif msg_type == 'progress':
@@ -1109,6 +1113,10 @@ class SearchApp(ctk.CTk):
                         )
         except queue.Empty:
             pass
+        except Exception as e:
+            print(f"[DEBUG] ERRO em check_progress: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Continuar verificando
         if self.search_in_progress:
@@ -1116,6 +1124,10 @@ class SearchApp(ctk.CTk):
 
     def finish_search(self):
         """Finaliza a busca e exibe resultados"""
+        print(f"[DEBUG] finish_search() chamada!")
+        print(f"[DEBUG] Arquivos encontrados: {len(self.search_engine.files_found)}")
+        print(f"[DEBUG] Arquivos com erro: {len(self.search_engine.files_with_errors)}")
+
         self.search_in_progress = False
 
         # Fechar janela de progresso
@@ -1131,6 +1143,8 @@ class SearchApp(ctk.CTk):
         # Exibir resultados
         num_found = len(self.search_engine.files_found)
         num_errors = len(self.search_engine.files_with_errors)
+
+        print(f"[DEBUG] Exibindo {num_found} resultados na GUI...")
 
         if num_found > 0:
             self.results_textbox.insert("end", f"✅ {num_found} arquivo(s) encontrado(s)!\n\n", "success")
