@@ -1015,6 +1015,10 @@ class SearchApp(ctk.CTk):
         # Mostrar janela de progresso
         self.show_progress_window()
 
+        # CRÍTICO: Reiniciar o check_progress loop
+        print(f"[DEBUG] Agendando check_progress para monitorar busca...")
+        self.after(100, self.check_progress)
+
         # Iniciar busca em thread separada
         search_thread = threading.Thread(
             target=self.search_engine.search,
@@ -1089,6 +1093,13 @@ class SearchApp(ctk.CTk):
 
     def check_progress(self):
         """Verifica o progresso da busca periodicamente"""
+        # Log de execução periódica (a cada 10 chamadas para não poluir)
+        if not hasattr(self, '_check_progress_count'):
+            self._check_progress_count = 0
+        self._check_progress_count += 1
+        if self._check_progress_count % 10 == 0:
+            print(f"[DEBUG] check_progress rodando... (chamada #{self._check_progress_count}, search_in_progress={self.search_in_progress})")
+
         try:
             while True:
                 msg_type, data, extra = self.search_engine.progress_queue.get_nowait()
@@ -1121,6 +1132,8 @@ class SearchApp(ctk.CTk):
         # Continuar verificando
         if self.search_in_progress:
             self.after(100, self.check_progress)
+        else:
+            print(f"[DEBUG] check_progress parando porque search_in_progress=False")
 
     def finish_search(self):
         """Finaliza a busca e exibe resultados"""
