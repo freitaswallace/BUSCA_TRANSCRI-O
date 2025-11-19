@@ -75,12 +75,20 @@ def normalize_text(text: str) -> str:
     Remove acentos e normaliza texto para busca
     ANTONIO CARDINÁ -> ANTONIO CARDINA
     """
+    if not text:
+        return ""
+
     # Normaliza para NFD (decompõe caracteres acentuados)
     nfd = unicodedata.normalize('NFD', text)
     # Remove marcas diacríticas (acentos)
     without_accents = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
     # Converte para maiúsculas para comparação case-insensitive
-    return without_accents.upper()
+    result = without_accents.upper()
+
+    # Remove espaços extras
+    result = ' '.join(result.split())
+
+    return result
 
 
 # ===========================
@@ -149,19 +157,38 @@ class WordSearchEngine:
         Busca um termo em um documento Word
         Prioriza termos em negrito e sublinhado
         Ignora acentos na comparação
+        Busca flexível: encontra mesmo com palavras no meio
         Retorna (encontrado: bool, contexto: str)
         """
         try:
             doc = Document(file_path)
             # Normalizar termo de busca (remove acentos e converte para maiúsculas)
             search_term_normalized = normalize_text(search_term)
+
+            # Dividir termo em palavras para busca flexível
+            search_words = search_term_normalized.split()
+
             found_contexts = []
 
-            print(f"[DEBUG] Buscando '{search_term}' normalizado para '{search_term_normalized}'")
+            print(f"\n[DEBUG] ==========================================")
+            print(f"[DEBUG] Buscando '{search_term}'")
+            print(f"[DEBUG] Normalizado: '{search_term_normalized}'")
+            print(f"[DEBUG] Palavras: {search_words}")
             print(f"[DEBUG] Total de parágrafos: {len(doc.paragraphs)}")
+            print(f"[DEBUG] ==========================================\n")
+
+            # Mostrar primeiros parágrafos para debug
+            sample_paras = []
+            for i, p in enumerate(doc.paragraphs[:5]):
+                if p.text.strip():
+                    sample_paras.append(f"  [{i}] {p.text[:80]}")
+            if sample_paras:
+                print(f"[DEBUG] Primeiros parágrafos do documento:")
+                print("\n".join(sample_paras))
+                print()
 
             # Buscar em parágrafos
-            for para in doc.paragraphs:
+            for idx, para in enumerate(doc.paragraphs):
                 para_text = para.text
                 if not para_text.strip():  # Pular parágrafos vazios
                     continue
@@ -169,35 +196,64 @@ class WordSearchEngine:
                 # Normalizar texto do parágrafo
                 para_text_normalized = normalize_text(para_text)
 
-                # Verificar se o termo está no parágrafo (sem acentos)
-                if search_term_normalized in para_text_normalized:
-                    print(f"[DEBUG] MATCH encontrado no parágrafo: {para_text[:100]}")
+                # BUSCA FLEXÍVEL: verificar se todas as palavras estão presentes (mesmo não consecutivas)
+                all_words_found = all(word in para_text_normalized for word in search_words)
+
+                # Log detalhado a cada 50 parágrafos ou quando encontrar match
+                if idx % 50 == 0:
+                    print(f"[DEBUG] Parágrafo {idx}: '{para_text_normalized[:80]}...'")
+
+                # Verificar se o termo está no parágrafo
+                if all_words_found:
+                    print(f"[DEBUG] ✓✓✓ MATCH ENCONTRADO no parágrafo {idx}!")
+                    print(f"[DEBUG] Texto original: '{para_text[:150]}'")
+                    print(f"[DEBUG] Texto normalizado: '{para_text_normalized[:150]}'")
+
                     # Verificar formatação (negrito e sublinhado tem prioridade)
                     has_bold_underline = False
 
                     for run in para.runs:
                         run_text_normalized = normalize_text(run.text)
-                        if search_term_normalized in run_text_normalized:
+                        run_has_all_words = all(word in run_text_normalized for word in search_words)
+
+                        if run_has_all_words:
                             if run.bold and run.underline:
                                 has_bold_underline = True
                                 found_contexts.append(f"[DESTAQUE] {para_text[:200]}")
+                                print(f"[DEBUG] → Com formatação NEGRITO+SUBLINHADO")
                                 break
 
                     if not has_bold_underline:
                         found_contexts.append(para_text[:200])
+                        print(f"[DEBUG] → Sem formatação especial")
 
             # Buscar em tabelas
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
+            print(f"[DEBUG] Total de tabelas: {len(doc.tables)}")
+            for table_idx, table in enumerate(doc.tables):
+                for row_idx, row in enumerate(table.rows):
+                    for cell_idx, cell in enumerate(row.cells):
                         cell_text = cell.text
+                        if not cell_text.strip():
+                            continue
+
                         cell_text_normalized = normalize_text(cell_text)
-                        if search_term_normalized in cell_text_normalized:
+
+                        # BUSCA FLEXÍVEL em tabelas também
+                        all_words_in_cell = all(word in cell_text_normalized for word in search_words)
+
+                        if all_words_in_cell:
+                            print(f"[DEBUG] ✓✓✓ MATCH em TABELA {table_idx}, linha {row_idx}, célula {cell_idx}")
+                            print(f"[DEBUG] Texto: '{cell_text[:100]}'")
                             found_contexts.append(f"[TABELA] {cell_text[:200]}")
+
+            print(f"[DEBUG] Total de contextos encontrados: {len(found_contexts)}")
 
             if found_contexts:
                 context = " | ".join(found_contexts[:3])  # Primeiros 3 contextos
+                print(f"[DEBUG] RETORNANDO SUCESSO com {len(found_contexts)} match(es)")
                 return True, context
+
+            print(f"[DEBUG] Nenhum match encontrado neste documento")
 
             # Se habilitado, usar IA para verificação mais profunda
             if use_ai and api_key:
@@ -983,8 +1039,22 @@ def main():
     print(f"📁 Pasta Base: {PASTA_BASE}")
     print(f"🧵 Threads: {NUM_THREADS}")
     print(f"📝 Extensões: {', '.join(EXTENSIONS)}")
-    print(f"🤖 IA: Sempre ativa (Google Gemini)")
+    print(f"🤖 IA: Opcional (Google Gemini)")
     print("=" * 60)
+    print()
+
+    # Teste de normalização
+    print("[TESTE] Testando função de normalização:")
+    test_cases = [
+        "José Silva",
+        "ANTONIO CARDINÁ",
+        "João Paulo",
+        "Café",
+        "São Paulo"
+    ]
+    for test in test_cases:
+        normalized = normalize_text(test)
+        print(f"  '{test}' → '{normalized}'")
     print()
 
     # Verificar se a pasta existe
