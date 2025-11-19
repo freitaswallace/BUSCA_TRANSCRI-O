@@ -815,6 +815,15 @@ class SearchApp(ctk.CTk):
         self.results_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.results_textbox.bind('<Double-Button-1>', self.open_file_from_selection)
 
+        # Configurar tags de formatação para resultados
+        self.results_textbox.tag_config("success", foreground=COLORS["success"], font=ctk.CTkFont(size=14, weight="bold"))
+        self.results_textbox.tag_config("number", foreground=COLORS["fg_secondary"], font=ctk.CTkFont(size=13, weight="bold"))
+        self.results_textbox.tag_config("filename", foreground=COLORS["accent"], font=ctk.CTkFont(size=13, weight="bold"))
+        self.results_textbox.tag_config("arrow", foreground=COLORS["fg_secondary"])
+        self.results_textbox.tag_config("context", foreground=COLORS["fg_primary"], font=ctk.CTkFont(size=12))
+        self.results_textbox.tag_config("separator", foreground=COLORS["border"])
+        self.results_textbox.tag_config("tip", foreground=COLORS["info"], font=ctk.CTkFont(size=11, slant="italic"))
+
         # ===== PAINEL DE ERROS =====
         errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
         errors_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
@@ -1135,6 +1144,25 @@ class SearchApp(ctk.CTk):
         else:
             print(f"[DEBUG] check_progress parando porque search_in_progress=False")
 
+    def _extract_relevant_context(self, context: str) -> str:
+        """Extrai o trecho relevante do contexto para exibição limpa"""
+        if not context or context == "N/A":
+            return "Encontrado no documento"
+
+        # Remover prefixos técnicos
+        context = context.replace("[.DOC ANTIGO] ", "")
+        context = context.replace("[IA - .DOC ANTIGO] ", "")
+
+        # Se for muito longo, truncar
+        max_length = 150
+        if len(context) > max_length:
+            context = context[:max_length] + "..."
+
+        # Limpar caracteres estranhos e espaços extras
+        context = ' '.join(context.split())
+
+        return context
+
     def finish_search(self):
         """Finaliza a busca e exibe resultados"""
         print(f"[DEBUG] finish_search() chamada!")
@@ -1161,16 +1189,24 @@ class SearchApp(ctk.CTk):
 
         if num_found > 0:
             self.results_textbox.insert("end", f"✅ {num_found} arquivo(s) encontrado(s)!\n\n", "success")
+            self.results_textbox.insert("end", "─" * 80 + "\n\n", "separator")
 
             for i, (file_path, context) in enumerate(self.search_engine.files_found, 1):
                 filename = os.path.basename(file_path)
-                self.results_textbox.insert("end", f"{i}. 📄 {filename}\n", "filename")
-                self.results_textbox.insert("end", f"   📁 {file_path}\n", "path")
-                if context:
-                    self.results_textbox.insert("end", f"   💬 {context}\n", "context")
-                self.results_textbox.insert("end", "\n")
 
-            self.results_textbox.insert("end", "\n💡 Dica: Clique duas vezes em um arquivo para abrir\n", "tip")
+                # Extrair o conteúdo relevante do contexto
+                context_clean = self._extract_relevant_context(context)
+
+                # Formato: Arquivo.doc → Trecho encontrado
+                self.results_textbox.insert("end", f"{i}. ", "number")
+                self.results_textbox.insert("end", f"📄 {filename}", "filename")
+                self.results_textbox.insert("end", "  →  ", "arrow")
+                self.results_textbox.insert("end", f"{context_clean}\n", "context")
+
+                # Linha separadora sutil
+                self.results_textbox.insert("end", "   " + "·" * 70 + "\n\n", "separator")
+
+            self.results_textbox.insert("end", "💡 Dica: Clique duas vezes em um arquivo para abrir\n", "tip")
             self.status_label.configure(
                 text=f"✅ Busca concluída! {num_found} arquivo(s) encontrado(s) em {minutes:02d}:{seconds:02d}"
             )
