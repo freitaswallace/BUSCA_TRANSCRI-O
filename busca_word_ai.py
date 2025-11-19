@@ -468,7 +468,7 @@ class WordSearchEngine:
             Responda APENAS "SIM" ou "NÃO".
 
             Texto:
-            {text[:5000]}
+            {text[:2000]}
             """
 
             response = model.generate_content(prompt)
@@ -516,7 +516,7 @@ class WordSearchEngine:
                     self.results_queue.put(('error', file_path, context))
 
                 # Atualizar progresso
-                self.progress_queue.put(('progress', self.total_files_processed))
+                self.progress_queue.put(('progress', self.total_files_processed, None))
 
             except Exception as e:
                 print(f"[DEBUG] Thread {thread_id} ERRO: {str(e)}")
@@ -526,7 +526,7 @@ class WordSearchEngine:
 
         # Sinalizar que esta thread terminou
         print(f"[DEBUG] Thread {thread_id} finalizada")
-        self.progress_queue.put(('thread_done', thread_id))
+        self.progress_queue.put(('thread_done', thread_id, None))
 
     def search(self, search_term: str, use_ai: bool = False, api_key: str = None) -> bool:
         """
@@ -748,7 +748,7 @@ class SearchApp(ctk.CTk):
         self.use_ai_var = ctk.BooleanVar(value=False)
         use_ai_check = ctk.CTkCheckBox(
             ai_container,
-            text="🤖 Usar IA (Google Gemini) - Mais preciso, porém mais lento",
+            text="🤖 Usar IA (Google Gemini) - ATENÇÃO: Muito mais lento! Use apenas se a busca simples não encontrar",
             variable=self.use_ai_var,
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=COLORS["fg_primary"],
