@@ -35,6 +35,7 @@ except ImportError:
 # Biblioteca para ler arquivos .doc antigos (formato binário) - Windows COM
 try:
     import win32com.client
+    import pythoncom
     HAS_WORD_COM = True
 except ImportError:
     HAS_WORD_COM = False
@@ -109,6 +110,9 @@ def extract_text_from_old_doc(file_path: str) -> str:
         print(f"[DEBUG] pywin32 não disponível, não é possível ler .doc antigo")
         return ""
 
+    # CRÍTICO: Inicializar COM para esta thread
+    pythoncom.CoInitialize()
+
     word_app = None
     doc = None
     try:
@@ -146,6 +150,10 @@ def extract_text_from_old_doc(file_path: str) -> str:
             pass
 
         return ""
+
+    finally:
+        # CRÍTICO: Sempre desinicializar COM
+        pythoncom.CoUninitialize()
 
 
 def is_old_doc_format(file_path: str) -> bool:
