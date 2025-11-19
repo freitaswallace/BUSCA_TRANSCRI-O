@@ -43,7 +43,7 @@ except ImportError:
 # ===========================
 # CONFIGURAÇÕES GLOBAIS
 # ===========================
-PASTA_BASE = r"\\192.168.20.100\trabalho\Transcrições"
+PASTA_BASE = r"C:\Users\Usuario\Downloads\teste"
 CONFIG_FILE = "config.json"
 EXTENSIONS = ['.docx', '.doc']
 NUM_THREADS = 10
@@ -157,14 +157,21 @@ class WordSearchEngine:
             search_term_normalized = normalize_text(search_term)
             found_contexts = []
 
+            print(f"[DEBUG] Buscando '{search_term}' normalizado para '{search_term_normalized}'")
+            print(f"[DEBUG] Total de parágrafos: {len(doc.paragraphs)}")
+
             # Buscar em parágrafos
             for para in doc.paragraphs:
                 para_text = para.text
+                if not para_text.strip():  # Pular parágrafos vazios
+                    continue
+
                 # Normalizar texto do parágrafo
                 para_text_normalized = normalize_text(para_text)
 
                 # Verificar se o termo está no parágrafo (sem acentos)
                 if search_term_normalized in para_text_normalized:
+                    print(f"[DEBUG] MATCH encontrado no parágrafo: {para_text[:100]}")
                     # Verificar formatação (negrito e sublinhado tem prioridade)
                     has_bold_underline = False
 
@@ -244,12 +251,19 @@ class WordSearchEngine:
     def process_files_in_thread(self, file_paths: List[str], search_term: str,
                                 use_ai: bool, api_key: str, thread_id: int):
         """Processa uma lista de arquivos em uma thread"""
+        print(f"[DEBUG] Thread {thread_id} iniciada com {len(file_paths)} arquivos")
+
         for file_path in file_paths:
             if self.stop_event.is_set():
                 break
 
             try:
+                filename = os.path.basename(file_path)
+                print(f"[DEBUG] Thread {thread_id} processando: {filename}")
+
                 found, context = self.search_in_document(file_path, search_term, use_ai, api_key)
+
+                print(f"[DEBUG] Thread {thread_id} - {filename}: encontrado={found}, contexto={context[:50] if context else 'N/A'}")
 
                 with self.lock:
                     self.total_files_processed += 1
@@ -258,6 +272,7 @@ class WordSearchEngine:
                     with self.lock:
                         self.files_found.append((file_path, context))
                     self.results_queue.put(('found', file_path, context))
+                    print(f"[DEBUG] Thread {thread_id} - ENCONTRADO: {filename}")
                 elif context == "LOCKED":
                     with self.lock:
                         self.files_with_errors.append((file_path, "Arquivo bloqueado/aberto"))
@@ -271,18 +286,25 @@ class WordSearchEngine:
                 self.progress_queue.put(('progress', self.total_files_processed))
 
             except Exception as e:
+                print(f"[DEBUG] Thread {thread_id} ERRO: {str(e)}")
                 with self.lock:
                     self.files_with_errors.append((file_path, f"Erro: {str(e)}"))
                 self.results_queue.put(('error', file_path, str(e)))
 
         # Sinalizar que esta thread terminou
+        print(f"[DEBUG] Thread {thread_id} finalizada")
         self.progress_queue.put(('thread_done', thread_id))
 
-    def search(self, search_term: str, use_ai: bool = True, api_key: str = None) -> bool:
+    def search(self, search_term: str, use_ai: bool = False, api_key: str = None) -> bool:
         """
         Inicia busca paralela
         Retorna True se iniciou com sucesso
         """
+        print(f"[DEBUG] Iniciando busca...")
+        print(f"[DEBUG] Termo: {search_term}")
+        print(f"[DEBUG] Usar IA: {use_ai}")
+        print(f"[DEBUG] Pasta base: {self.base_path}")
+
         self.stop_event.clear()
         self.files_found = []
         self.files_with_errors = []
@@ -290,23 +312,31 @@ class WordSearchEngine:
 
         # Verificar se o caminho existe
         if not os.path.exists(self.base_path):
+            print(f"[DEBUG] ERRO: Pasta não existe: {self.base_path}")
             self.results_queue.put(('error_path', self.base_path, None))
             return False
+
+        print(f"[DEBUG] Pasta existe, listando arquivos...")
 
         # Listar todos os arquivos Word recursivamente
         all_files = []
         try:
             for ext in EXTENSIONS:
-                all_files.extend(Path(self.base_path).rglob(f'*{ext}'))
+                found = list(Path(self.base_path).rglob(f'*{ext}'))
+                print(f"[DEBUG] Arquivos {ext}: {len(found)}")
+                all_files.extend(found)
         except Exception as e:
+            print(f"[DEBUG] ERRO ao listar arquivos: {e}")
             self.results_queue.put(('error_path', str(e), None))
             return False
 
         if not all_files:
+            print(f"[DEBUG] Nenhum arquivo encontrado!")
             self.results_queue.put(('no_files', None, None))
             return False
 
         all_files = [str(f) for f in all_files]
+        print(f"[DEBUG] Total de arquivos para processar: {len(all_files)}")
 
         # Dividir arquivos entre threads
         files_per_thread = len(all_files) // self.num_threads
