@@ -13,6 +13,7 @@ import json
 import time
 import threading
 import queue
+import unicodedata
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Tuple
@@ -64,6 +65,22 @@ COLORS = {
     "info": "#3498DB",               # Azul informação
     "border": "#BDC3C7"              # Bordas sutis
 }
+
+
+# ===========================
+# FUNÇÕES AUXILIARES
+# ===========================
+def normalize_text(text: str) -> str:
+    """
+    Remove acentos e normaliza texto para busca
+    ANTONIO CARDINÁ -> ANTONIO CARDINA
+    """
+    # Normaliza para NFD (decompõe caracteres acentuados)
+    nfd = unicodedata.normalize('NFD', text)
+    # Remove marcas diacríticas (acentos)
+    without_accents = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    # Converte para maiúsculas para comparação case-insensitive
+    return without_accents.upper()
 
 
 # ===========================
@@ -123,30 +140,37 @@ class WordSearchEngine:
         self.files_with_errors = []
         self.total_files_processed = 0
         self.lock = threading.Lock()
+        # Semáforo para limitar chamadas simultâneas à IA (máximo 3 por vez)
+        self.ai_semaphore = threading.Semaphore(3)
 
-    def search_in_document(self, file_path: str, search_term: str, use_ai: bool = True,
+    def search_in_document(self, file_path: str, search_term: str, use_ai: bool = False,
                           api_key: str = None) -> Tuple[bool, str]:
         """
         Busca um termo em um documento Word
         Prioriza termos em negrito e sublinhado
+        Ignora acentos na comparação
         Retorna (encontrado: bool, contexto: str)
         """
         try:
             doc = Document(file_path)
-            search_term_lower = search_term.lower()
+            # Normalizar termo de busca (remove acentos e converte para maiúsculas)
+            search_term_normalized = normalize_text(search_term)
             found_contexts = []
 
             # Buscar em parágrafos
             for para in doc.paragraphs:
                 para_text = para.text
+                # Normalizar texto do parágrafo
+                para_text_normalized = normalize_text(para_text)
 
-                # Verificar se o termo está no parágrafo
-                if search_term_lower in para_text.lower():
+                # Verificar se o termo está no parágrafo (sem acentos)
+                if search_term_normalized in para_text_normalized:
                     # Verificar formatação (negrito e sublinhado tem prioridade)
                     has_bold_underline = False
 
                     for run in para.runs:
-                        if search_term_lower in run.text.lower():
+                        run_text_normalized = normalize_text(run.text)
+                        if search_term_normalized in run_text_normalized:
                             if run.bold and run.underline:
                                 has_bold_underline = True
                                 found_contexts.append(f"[DESTAQUE] {para_text[:200]}")
@@ -160,7 +184,8 @@ class WordSearchEngine:
                 for row in table.rows:
                     for cell in row.cells:
                         cell_text = cell.text
-                        if search_term_lower in cell_text.lower():
+                        cell_text_normalized = normalize_text(cell_text)
+                        if search_term_normalized in cell_text_normalized:
                             found_contexts.append(f"[TABELA] {cell_text[:200]}")
 
             if found_contexts:
@@ -169,10 +194,12 @@ class WordSearchEngine:
 
             # Se habilitado, usar IA para verificação mais profunda
             if use_ai and api_key:
-                full_text = "\n".join([p.text for p in doc.paragraphs])
-                ai_result = self.check_with_ai(full_text, search_term, api_key)
-                if ai_result:
-                    return True, f"[IA] Menção encontrada no contexto do documento"
+                # Usar semáforo para limitar chamadas simultâneas à IA
+                with self.ai_semaphore:
+                    full_text = "\n".join([p.text for p in doc.paragraphs])
+                    ai_result = self.check_with_ai(full_text, search_term, api_key)
+                    if ai_result:
+                        return True, f"[IA] Menção encontrada no contexto do documento"
 
             return False, ""
 
@@ -449,14 +476,31 @@ class SearchApp(ctk.CTk):
         )
         search_btn.pack(side="right")
 
-        # Info IA sempre ativo
-        ai_info_label = ctk.CTkLabel(
+        # Container para checkbox de IA e info
+        ai_container = ctk.CTkFrame(search_inner, fg_color="transparent")
+        ai_container.pack(fill="x", pady=(15, 0))
+
+        # Checkbox Usar IA
+        self.use_ai_var = ctk.BooleanVar(value=False)
+        use_ai_check = ctk.CTkCheckBox(
+            ai_container,
+            text="🤖 Usar IA (Google Gemini) - Mais preciso, porém mais lento",
+            variable=self.use_ai_var,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=COLORS["fg_primary"],
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"]
+        )
+        use_ai_check.pack(side="left")
+
+        # Info sobre formatação
+        format_info_label = ctk.CTkLabel(
             search_inner,
-            text="🤖 Busca com IA sempre ativa • Prioriza termos em Negrito e Sublinhado",
-            font=ctk.CTkFont(size=12),
+            text="💡 Prioriza termos em Negrito e Sublinhado • Ignora acentos automaticamente",
+            font=ctk.CTkFont(size=11),
             text_color=COLORS["fg_secondary"]
         )
-        ai_info_label.pack(anchor="w", pady=(10, 0))
+        format_info_label.pack(anchor="w", pady=(5, 0))
 
         # ===== INFO PASTA =====
         info_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -679,14 +723,16 @@ class SearchApp(ctk.CTk):
             messagebox.showwarning("Atenção", "Por favor, digite um nome ou empresa para buscar.")
             return
 
-        # IA sempre ativa
-        use_ai = True
+        # Verificar se usuário quer usar IA
+        use_ai = self.use_ai_var.get()
         api_key = self.config_manager.get_api_key()
 
-        if not api_key:
+        # Se IA ativada, verificar se tem API Key
+        if use_ai and not api_key:
             messagebox.showwarning(
                 "Configuração Necessária",
-                "Por favor, configure a API Key do Gemini clicando no botão ⚙️ no canto superior direito."
+                "Para usar IA, configure a API Key do Gemini clicando no botão ⚙️ no canto superior direito.\n\n"
+                "Ou desmarque a opção 'Usar IA' para busca apenas textual."
             )
             return
 
@@ -697,7 +743,10 @@ class SearchApp(ctk.CTk):
         # Atualizar status
         self.search_in_progress = True
         self.start_time = time.time()
-        self.status_label.configure(text="🔄 Buscando arquivos com IA...")
+        if use_ai:
+            self.status_label.configure(text="🔄 Buscando arquivos com IA...")
+        else:
+            self.status_label.configure(text="🔄 Buscando arquivos (modo rápido)...")
 
         # Mostrar janela de progresso
         self.show_progress_window()
@@ -733,10 +782,13 @@ class SearchApp(ctk.CTk):
         )
         self.progress_icon.pack(pady=(30, 10))
 
-        # Mensagem
+        # Mensagem (varia conforme uso de IA)
+        use_ai = self.use_ai_var.get()
+        message_text = "Processando arquivos com IA..." if use_ai else "Processando arquivos..."
+
         self.progress_message = ctk.CTkLabel(
             progress_main,
-            text="Processando arquivos com IA...",
+            text=message_text,
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COLORS["fg_primary"]
         )
