@@ -58,22 +58,22 @@ CONFIG_FILE = "config.json"
 EXTENSIONS = ['.docx', '.doc']
 NUM_THREADS = 3  # Reduzido para evitar sobrecarga no Word COM com arquivos de rede
 
-# Cores (Tema Claro Agradável)
+# Cores (Tema Profissional e Neutro)
 COLORS = {
-    "bg_main": "#F5F7FA",           # Fundo principal (azul acinzentado muito claro)
+    "bg_main": "#F8F9FA",           # Fundo principal (cinza muito claro)
     "bg_card": "#FFFFFF",            # Cards e frames (branco puro)
-    "bg_header": "#4A90E2",          # Cabeçalho (azul suave)
-    "bg_input": "#ECF0F1",           # Inputs (cinza muito claro)
-    "fg_primary": "#2C3E50",         # Texto primário (cinza escuro azulado)
-    "fg_secondary": "#7F8C8D",       # Texto secundário (cinza médio)
+    "bg_header": "#495057",          # Cabeçalho (cinza escuro profissional)
+    "bg_input": "#F1F3F5",           # Inputs (cinza claríssimo)
+    "fg_primary": "#2B2D42",         # Texto primário (cinza escuro neutro)
+    "fg_secondary": "#6C757D",       # Texto secundário (cinza médio)
     "fg_header": "#FFFFFF",          # Texto do cabeçalho (branco)
-    "accent": "#5DADE2",             # Botão principal (azul claro)
-    "accent_hover": "#3498DB",       # Hover do botão (azul médio)
-    "success": "#27AE60",            # Verde suave
-    "error": "#E74C3C",              # Vermelho suave
-    "warning": "#F39C12",            # Laranja suave
-    "info": "#3498DB",               # Azul informação
-    "border": "#BDC3C7"              # Bordas sutis
+    "accent": "#3D5A80",             # Botão principal (azul corporativo escuro)
+    "accent_hover": "#293E56",       # Hover do botão (azul mais escuro)
+    "success": "#52796F",            # Verde discreto profissional
+    "error": "#8D4539",              # Vermelho escuro sóbrio
+    "warning": "#9A6F38",            # Laranja queimado discreto
+    "info": "#4A6FA5",               # Azul informação neutro
+    "border": "#DEE2E6"              # Bordas sutis cinza
 }
 
 
@@ -631,7 +631,7 @@ class SearchApp(ctk.CTk):
         super().__init__()
 
         # Configurações da janela
-        self.title("🔍 Busca Avançada em Transcrições - IA Integrada")
+        self.title("Busca Avançada em Transcrições - Sistema Profissional")
         self.geometry("1400x900")
 
         # Configurar tema CLARO
@@ -672,32 +672,34 @@ class SearchApp(ctk.CTk):
         # Título centralizado
         title_label = ctk.CTkLabel(
             header_container,
-            text="🔍 BUSCA AVANÇADA EM TRANSCRIÇÕES",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            text="BUSCA AVANÇADA EM TRANSCRIÇÕES",
+            font=ctk.CTkFont(size=28, weight="bold"),
             text_color=COLORS["fg_header"]
         )
-        title_label.pack(pady=25)
+        title_label.pack(pady=20)
 
         subtitle_label = ctk.CTkLabel(
             header_container,
-            text="Powered by Google Gemini AI • 10 Threads Paralelas",
-            font=ctk.CTkFont(size=12),
+            text="Sistema de busca inteligente com processamento paralelo",
+            font=ctk.CTkFont(size=13),
             text_color=COLORS["fg_header"]
         )
-        subtitle_label.pack(pady=(0, 10))
+        subtitle_label.pack(pady=(0, 15))
 
         # Botão de configuração (canto superior direito)
         config_btn = ctk.CTkButton(
             header_frame,
-            text="⚙️",
-            width=50,
-            height=50,
-            font=ctk.CTkFont(size=24),
+            text="Configurações",
+            width=130,
+            height=40,
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.show_config_dialog,
             fg_color=COLORS["bg_card"],
             text_color=COLORS["fg_primary"],
             hover_color=COLORS["bg_input"],
-            corner_radius=25
+            corner_radius=8,
+            border_width=1,
+            border_color=COLORS["border"]
         )
         config_btn.place(relx=0.98, rely=0.5, anchor="e")
 
@@ -711,11 +713,11 @@ class SearchApp(ctk.CTk):
 
         search_label = ctk.CTkLabel(
             search_inner,
-            text="👤 Nome ou Empresa:",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            text="Nome ou Empresa:",
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color=COLORS["fg_primary"]
         )
-        search_label.pack(anchor="w", pady=(0, 10))
+        search_label.pack(anchor="w", pady=(0, 12))
 
         # Container para input e botão
         input_container = ctk.CTkFrame(search_inner, fg_color="transparent")
@@ -737,15 +739,15 @@ class SearchApp(ctk.CTk):
 
         search_btn = ctk.CTkButton(
             input_container,
-            text="🔍 BUSCAR",
-            width=180,
+            text="BUSCAR",
+            width=160,
             height=50,
             command=self.start_search,
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=15, weight="bold"),
             fg_color=COLORS["accent"],
             hover_color=COLORS["accent_hover"],
             text_color="white",
-            corner_radius=10
+            corner_radius=8
         )
         search_btn.pack(side="right")
 
@@ -757,9 +759,9 @@ class SearchApp(ctk.CTk):
         self.use_ai_var = ctk.BooleanVar(value=False)
         use_ai_check = ctk.CTkCheckBox(
             ai_container,
-            text="🤖 Usar IA (Google Gemini) - ATENÇÃO: Muito mais lento! Use apenas se a busca simples não encontrar",
+            text="Usar IA (Google Gemini) - ATENÇÃO: Muito mais lento! Use apenas se a busca simples não encontrar",
             variable=self.use_ai_var,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12),
             text_color=COLORS["fg_primary"],
             fg_color=COLORS["accent"],
             hover_color=COLORS["accent_hover"]
@@ -769,11 +771,11 @@ class SearchApp(ctk.CTk):
         # Info sobre formatação
         format_info_label = ctk.CTkLabel(
             search_inner,
-            text="💡 Prioriza termos em Negrito e Sublinhado • Ignora acentos automaticamente",
+            text="Nota: Prioriza termos em negrito e sublinhado | Ignora acentos automaticamente",
             font=ctk.CTkFont(size=11),
             text_color=COLORS["fg_secondary"]
         )
-        format_info_label.pack(anchor="w", pady=(5, 0))
+        format_info_label.pack(anchor="w", pady=(8, 0))
 
         # ===== INFO PASTA =====
         info_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -781,7 +783,7 @@ class SearchApp(ctk.CTk):
 
         info_label = ctk.CTkLabel(
             info_frame,
-            text=f"📁 Pasta Base: {PASTA_BASE}",
+            text=f"Pasta Base: {PASTA_BASE}",
             font=ctk.CTkFont(size=11),
             text_color=COLORS["fg_secondary"]
         )
@@ -800,17 +802,17 @@ class SearchApp(ctk.CTk):
         results_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
         results_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-        results_header = ctk.CTkFrame(results_frame, fg_color=COLORS["success"], corner_radius=10, height=50)
+        results_header = ctk.CTkFrame(results_frame, fg_color=COLORS["success"], corner_radius=8, height=45)
         results_header.pack(fill="x", padx=15, pady=15)
         results_header.pack_propagate(False)
 
         results_title = ctk.CTkLabel(
             results_header,
-            text="📋 RESULTADOS",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            text="RESULTADOS DA BUSCA",
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="white"
         )
-        results_title.pack(pady=10)
+        results_title.pack(pady=12)
 
         # Frame scrollable para resultados modernos
         self.results_scrollable = ctk.CTkScrollableFrame(
@@ -824,17 +826,17 @@ class SearchApp(ctk.CTk):
         errors_frame = ctk.CTkFrame(results_container, fg_color=COLORS["bg_card"], corner_radius=15)
         errors_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
-        errors_header = ctk.CTkFrame(errors_frame, fg_color=COLORS["warning"], corner_radius=10, height=50)
+        errors_header = ctk.CTkFrame(errors_frame, fg_color=COLORS["warning"], corner_radius=8, height=45)
         errors_header.pack(fill="x", padx=15, pady=15)
         errors_header.pack_propagate(False)
 
         errors_title = ctk.CTkLabel(
             errors_header,
-            text="⚠️ ARQUIVOS NÃO ACESSADOS",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            text="ARQUIVOS NÃO ACESSADOS",
+            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="white"
         )
-        errors_title.pack(pady=10)
+        errors_title.pack(pady=12)
 
         self.errors_textbox = ctk.CTkTextbox(
             errors_frame,
@@ -853,8 +855,8 @@ class SearchApp(ctk.CTk):
 
         self.status_label = ctk.CTkLabel(
             status_frame,
-            text="✅ Sistema pronto para busca...",
-            font=ctk.CTkFont(size=13),
+            text="Sistema pronto para busca",
+            font=ctk.CTkFont(size=12),
             text_color=COLORS["fg_header"]
         )
         self.status_label.pack(side="left", padx=30, pady=15)
@@ -863,7 +865,7 @@ class SearchApp(ctk.CTk):
         """Mostra janela de configuração da API Key"""
         # Criar janela modal
         config_window = ctk.CTkToplevel(self)
-        config_window.title("⚙️ Configurações")
+        config_window.title("Configurações")
         config_window.geometry("650x450")
         config_window.resizable(False, False)
 
@@ -886,8 +888,8 @@ class SearchApp(ctk.CTk):
         # Título
         title_config = ctk.CTkLabel(
             main_config_frame,
-            text="🔑 Configuração da API Key",
-            font=ctk.CTkFont(size=26, weight="bold"),
+            text="Configuração da API Key",
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color=COLORS["fg_primary"]
         )
         title_config.pack(pady=30)
@@ -928,8 +930,8 @@ class SearchApp(ctk.CTk):
         # Link para obter API Key
         link_label = ctk.CTkLabel(
             content_frame,
-            text="🔗 Obter API Key: https://makersuite.google.com/app/apikey",
-            font=ctk.CTkFont(size=13),
+            text="Obter API Key: https://makersuite.google.com/app/apikey",
+            font=ctk.CTkFont(size=12),
             text_color=COLORS["info"],
             cursor="hand2"
         )
@@ -944,7 +946,7 @@ class SearchApp(ctk.CTk):
 
             if self.config_manager.set_api_key(api_key):
                 messagebox.showinfo("Sucesso", "API Key salva com sucesso!")
-                self.status_label.configure(text="✅ API Key configurada e salva")
+                self.status_label.configure(text="API Key configurada e salva")
                 config_window.destroy()
             else:
                 messagebox.showerror("Erro", "Erro ao salvar API Key")
@@ -1000,7 +1002,7 @@ class SearchApp(ctk.CTk):
         if use_ai and not api_key:
             messagebox.showwarning(
                 "Configuração Necessária",
-                "Para usar IA, configure a API Key do Gemini clicando no botão ⚙️ no canto superior direito.\n\n"
+                "Para usar IA, configure a API Key do Gemini clicando no botão Configurações no canto superior direito.\n\n"
                 "Ou desmarque a opção 'Usar IA' para busca apenas textual."
             )
             return
@@ -1210,11 +1212,11 @@ class SearchApp(ctk.CTk):
             # Header com contador
             header_label = ctk.CTkLabel(
                 self.results_scrollable,
-                text=f"✅ {num_found} arquivo(s) encontrado(s)!",
-                font=ctk.CTkFont(size=16, weight="bold"),
+                text=f"{num_found} arquivo(s) encontrado(s)",
+                font=ctk.CTkFont(size=15, weight="bold"),
                 text_color=COLORS["success"]
             )
-            header_label.pack(pady=(10, 20), anchor="w")
+            header_label.pack(pady=(10, 18), anchor="w")
 
             # Criar um botão moderno para cada resultado
             for i, (file_path, context) in enumerate(self.search_engine.files_found, 1):
@@ -1236,12 +1238,12 @@ class SearchApp(ctk.CTk):
                 # Botão do arquivo (ocupa ~50% do espaço)
                 file_button = ctk.CTkButton(
                     result_frame,
-                    text=f"📄 {filename}",
-                    font=ctk.CTkFont(size=13, weight="bold"),
+                    text=filename,
+                    font=ctk.CTkFont(size=12, weight="bold"),
                     fg_color=COLORS["accent"],
                     hover_color=COLORS["accent_hover"],
                     text_color="white",
-                    corner_radius=8,
+                    corner_radius=6,
                     command=lambda fp=file_path: self.open_file(fp),
                     anchor="w"
                 )
@@ -1260,43 +1262,43 @@ class SearchApp(ctk.CTk):
             # Dica no final
             tip_label = ctk.CTkLabel(
                 self.results_scrollable,
-                text="💡 Clique no botão do arquivo para abrir",
+                text="Clique no botão do arquivo para abrir",
                 font=ctk.CTkFont(size=11),
                 text_color=COLORS["info"]
             )
             tip_label.pack(pady=(20, 10), anchor="w")
 
             self.status_label.configure(
-                text=f"✅ Busca concluída! {num_found} arquivo(s) encontrado(s) em {minutes:02d}:{seconds:02d}"
+                text=f"Busca concluída - {num_found} arquivo(s) encontrado(s) em {minutes:02d}:{seconds:02d}"
             )
         else:
             # Mensagem de nenhum resultado
             no_result_label = ctk.CTkLabel(
                 self.results_scrollable,
-                text="❌ Nenhum arquivo encontrado",
-                font=ctk.CTkFont(size=16, weight="bold"),
+                text="Nenhum arquivo encontrado",
+                font=ctk.CTkFont(size=15, weight="bold"),
                 text_color=COLORS["error"]
             )
             no_result_label.pack(pady=50)
-            self.status_label.configure(text=f"⚠️ Nenhum resultado encontrado em {minutes:02d}:{seconds:02d}")
+            self.status_label.configure(text=f"Nenhum resultado encontrado em {minutes:02d}:{seconds:02d}")
 
         # Exibir erros
         if num_errors > 0:
-            self.errors_textbox.insert("end", f"⚠️ {num_errors} arquivo(s) não acessado(s):\n\n")
+            self.errors_textbox.insert("end", f"{num_errors} arquivo(s) não acessado(s):\n\n")
 
             for i, (file_path, error_msg) in enumerate(self.search_engine.files_with_errors, 1):
                 filename = os.path.basename(file_path)
-                self.errors_textbox.insert("end", f"{i}. 🔒 {filename}\n")
+                self.errors_textbox.insert("end", f"{i}. {filename}\n")
                 self.errors_textbox.insert("end", f"   Motivo: {error_msg}\n\n")
         else:
-            self.errors_textbox.insert("end", "✅ Todos os arquivos foram acessados com sucesso!")
+            self.errors_textbox.insert("end", "Todos os arquivos foram acessados com sucesso")
 
         # Mostrar popup de conclusão
         messagebox.showinfo(
             "Busca Concluída",
             f"Busca finalizada em {minutes:02d}:{seconds:02d}\n\n"
-            f"✅ Encontrados: {num_found}\n"
-            f"⚠️ Erros: {num_errors}"
+            f"Encontrados: {num_found}\n"
+            f"Erros: {num_errors}"
         )
 
     def open_file_from_selection(self, event):
@@ -1339,12 +1341,12 @@ class SearchApp(ctk.CTk):
 def main():
     """Função principal"""
     print("=" * 60)
-    print("🔍 Sistema de Busca Avançada em Arquivos Word com IA")
+    print("Sistema de Busca Avançada em Arquivos Word com IA")
     print("=" * 60)
-    print(f"📁 Pasta Base: {PASTA_BASE}")
-    print(f"🧵 Threads: {NUM_THREADS}")
-    print(f"📝 Extensões: {', '.join(EXTENSIONS)}")
-    print(f"🤖 IA: Opcional (Google Gemini)")
+    print(f"Pasta Base: {PASTA_BASE}")
+    print(f"Threads: {NUM_THREADS}")
+    print(f"Extensões: {', '.join(EXTENSIONS)}")
+    print(f"IA: Opcional (Google Gemini)")
     print("=" * 60)
     print()
 
@@ -1364,7 +1366,7 @@ def main():
 
     # Verificar se a pasta existe
     if not os.path.exists(PASTA_BASE):
-        print(f"⚠️ AVISO: Pasta base não encontrada: {PASTA_BASE}")
+        print(f"AVISO: Pasta base não encontrada: {PASTA_BASE}")
         print("O programa continuará, mas você pode precisar ajustar o caminho.")
         print()
 
